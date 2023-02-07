@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 
 	tgbotapi "github.com/Syfaro/telegram-bot-api"
 )
@@ -31,7 +32,7 @@ func (w Weather) GetWeather(url string) int { // метод, отправляю�
 	if err != nil {
 		fmt.Println(err)
 	}
-	if err := json.Unmarshal(body, &w); err != nil {
+	if err := json.Unmarshal(body, &w); err != nil { // полученный ответ формата json помещаю в структуру Weather
 		fmt.Printf("Ошибка декод-я json в структуру [%s]", err.Error())
 	}
 
@@ -48,6 +49,7 @@ var numericKeyboard2 = tgbotapi.NewReplyKeyboard(
 	tgbotapi.NewKeyboardButtonRow(
 		tgbotapi.NewKeyboardButton("Уфа"),
 		tgbotapi.NewKeyboardButton("Москва"),
+		tgbotapi.NewKeyboardButton("Назад"),
 	),
 )
 
@@ -88,46 +90,54 @@ func main() {
 				continue
 			}
 
-			var msg = Answer_to_user(Text, w, UserName, ChatID) // метод, который формирует ответ пользователю, в соотв-ии
+			var msg = AnswerToUser(Text, w, UserName, ChatID) // метод, который формирует ответ пользователю, в соотв-ии
 			// с нажатой кнопкой, результат метода помещается в переменную msg
 			if _, err := bot.Send(msg); err != nil { // затем ответ отправляется пользователю
 				log.Panic(err)
 			}
 		}
-
 	}
 }
 
-func Answer_to_user(Text string, w Weather, UserName string, ChatID int64) tgbotapi.MessageConfig {
+func AnswerToUser(Text string, w Weather, UserName string, ChatID int64) tgbotapi.MessageConfig {
 	var result_temp int
-
+	var res string
 	var msg = tgbotapi.MessageConfig{}
 
-	switch Text {
-	case "open":
+	res = strings.ToUpper(Text) //преобразую текст, полученный от пользователя, в верхний регистр, для того, чтобы
+	// было неважно в каком регистре пользователь напишет слово open или close
+	switch res {
+	case "OPEN":
 		msg = tgbotapi.NewMessage(ChatID, "Весь мой функционал на кнопках")
 		msg.ReplyMarkup = numericKeyboard // открывает первые кнопки
 
-	case "close":
+	case "CLOSE":
 		msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
 
-	case "Уфа":
+	case "УФА":
 		result_temp = w.GetWeather(ufa_url)
 		reply := fmt.Sprintf("Cейчас температура в Уфе  %d", result_temp)
 		msg = tgbotapi.NewMessage(ChatID, reply) // отправляет температуру пользователю
 
-	case "Москва":
+	case "МОСКВА":
 		result_temp = w.GetWeather(msc_url)
 		reply := fmt.Sprintf("Cейчас температура в Москве  %d", result_temp)
 		msg = tgbotapi.NewMessage(ChatID, reply) // отправляет также температуру
 
-	case "Поприветствовать":
+	case "ПОПРИВЕТСТВОВАТЬ":
 		reply := fmt.Sprintf("Привет %s, я могу подсказать погоду)", UserName)
 		msg = tgbotapi.NewMessage(ChatID, reply) // приветствует пользователя
 
-	case "Погода":
+	case "ПОГОДА":
 		msg = tgbotapi.NewMessage(ChatID, "Вы выбрали раздел погода")
-		msg.ReplyMarkup = numericKeyboard2 // открывает кнопки кнопки с городами
+		msg.ReplyMarkup = numericKeyboard2 // открывает кнопки с городами
+
+	case "НАЗАД":
+		msg = tgbotapi.NewMessage(ChatID, "Вы вернулись назад")
+		msg.ReplyMarkup = numericKeyboard // Добавил кнопку назад и default
+
+	default:
+		msg = tgbotapi.NewMessage(ChatID, "Неизвестная команда")
 	}
 
 	return msg
